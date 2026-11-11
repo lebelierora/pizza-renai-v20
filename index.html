@@ -1,0 +1,1332 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <link rel="icon" href="data:," />
+    <title>ピザ屋バイトと3人の常連さん</title>
+    <style>
+      :root{
+        --ink:#2b2320;
+        --paper:#fff8ef;
+        --accent:#d8402a;
+        --accent-dark:#a92c1a;
+        --tomato:#e2543a;
+        --cream:#ffedd6;
+        --wood:#8a5a33;
+        --dialog-bg:rgba(38,26,20,.88);
+      }
+      *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+      html,body{ height:100%; }
+      body{
+        margin:0;
+        font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",sans-serif;
+        color:var(--ink);
+        background:#1d1410;
+        overflow:hidden;
+        touch-action:manipulation;
+        overscroll-behavior:none;
+      }
+      button{ font-family:inherit; min-height:44px; cursor:pointer; touch-action:manipulation; }
+      #app{
+        position:fixed; inset:0;
+        height:100dvh;
+        max-width:860px; margin:0 auto;
+        overflow:hidden;
+        background:#000;
+      }
+      /* ---------- 背景 ---------- */
+      .bg-layer{ position:absolute; inset:0; opacity:0; transition:opacity .6s ease; pointer-events:none; }
+      .bg-layer.active{ opacity:1; }
+      .bg-layer svg{ width:100%; height:100%; display:block; }
+      .bg-layer img{ width:100%; height:100%; object-fit:cover; object-position:55% 30%; display:block; }
+      /* ---------- 立ち絵 ---------- */
+      #charLayer{
+        position:absolute; left:0; right:0; bottom:0; top:0;
+        display:flex; align-items:flex-end; justify-content:center;
+        pointer-events:none;
+      }
+      #charFigure{
+        height:min(68dvh,560px);
+        max-width:88vw;
+        filter:drop-shadow(0 10px 14px rgba(0,0,0,.35));
+        opacity:0; transform:translateY(14px);
+        transition:opacity .35s ease, transform .35s ease;
+      }
+      #charFigure.show{ opacity:1; transform:translateY(0); }
+      #charFigure svg{ height:100%; width:auto; display:block; }
+      /* ---------- シート切り抜き（額縁ポートレート） ---------- */
+      #charLayer.portrait-mode{ padding-bottom:calc(172px + env(safe-area-inset-bottom)); }
+      #charFigure.portrait{
+        height:auto; width:min(80vw,440px);
+        filter:none;
+      }
+      #charFigure.portrait img{
+        width:100%; height:auto; display:block;
+        border-radius:16px;
+        border:4px solid #f6e7cd;
+        outline:2px solid rgba(122,58,28,.55);
+        box-shadow:0 16px 34px rgba(0,0,0,.45);
+        background:#f7ecd9;
+      }
+      /* ---------- ヒロイン3人：透明切り抜きの立ち絵 ---------- */
+      #charLayer.sprite-mode{ padding-bottom:calc(168px + env(safe-area-inset-bottom)); }
+      #charFigure.sprite{
+        height:auto; width:min(84vw,460px);
+        filter:drop-shadow(0 14px 14px rgba(0,0,0,.4));
+      }
+      #charFigure.sprite img{
+        width:100%; height:auto; display:block;
+      }
+      /* ---------- タイトル画面：お店イラスト＋広場に立つキャスト ---------- */
+      #titleScreen{
+        overflow-y:auto; padding:0; justify-content:flex-start; align-items:stretch;
+        background:#f3ddba;
+      }
+      .title-stage{ position:relative; width:100%; aspect-ratio:880/1564; flex:none; }
+      .title-photo{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+      .title-scrim-top{
+        position:absolute; left:0; right:0; top:0; height:36%;
+        background:linear-gradient(180deg, rgba(23,43,68,.45), rgba(23,43,68,0));
+        pointer-events:none;
+      }
+      .title-scrim-bottom{
+        position:absolute; left:0; right:0; bottom:0; height:16%;
+        background:linear-gradient(0deg, rgba(59,32,14,.34), rgba(59,32,14,0));
+        pointer-events:none;
+      }
+      .title-head{
+        position:absolute; left:0; right:0; top:0;
+        padding:calc(20px + env(safe-area-inset-top)) 16px 0;
+        text-align:center;
+      }
+      .title-cast{
+        position:absolute; left:0; right:0; bottom:10px; height:37%;
+        display:flex; align-items:flex-end; justify-content:center;
+        gap:2px; padding:0 4px;
+      }
+      .title-cast figure{
+        margin:0; height:100%; min-width:0;
+        display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+      }
+      .title-cast img{
+        height:calc(100% - 36px); width:auto; max-width:100%; display:block;
+        filter:drop-shadow(0 8px 7px rgba(70,35,10,.4));
+      }
+      .title-cast figcaption{
+        margin-top:5px; text-align:center; line-height:1.25;
+        background:rgba(43,26,16,.72); color:#fff7ec;
+        border:1.5px solid rgba(255,224,178,.75);
+        border-radius:999px; padding:3px 9px 4px;
+        font-size:11.5px; font-weight:800; white-space:nowrap;
+      }
+      .title-cast figcaption .role{ display:block; font-size:9.5px; font-weight:700; color:#ffd9a8; }
+      .title-panel{
+        flex:none; display:flex; flex-direction:column; align-items:center;
+        padding:18px 20px calc(22px + env(safe-area-inset-bottom));
+        background:linear-gradient(180deg,#f8e7c8,#ffedd6);
+      }
+      /* ---------- ステータスの全身サムネイル ---------- */
+      .status-who{ display:flex; align-items:center; font-weight:700; }
+      .status-thumb{
+        height:86px; width:auto; border-radius:8px; margin-right:12px;
+        border:2px solid #e8d5b5; background:#f7ecd9; display:block;
+      }
+      .status-thumb.cutout{
+        border:none; border-radius:0; background:transparent;
+      }
+      /* ---------- ステータスの主人公プロフィール ---------- */
+      .status-hero{ display:flex; gap:4px; align-items:flex-start; padding:2px 0 12px; border-bottom:2px solid #d9c3a5; margin-bottom:6px; }
+      .status-hero .status-thumb{ height:118px; }
+      .status-hero-body{ min-width:0; }
+      .status-hero-name{ font-weight:800; font-size:16px; color:var(--ink); margin:2px 0 5px; }
+      .status-hero-name .role{ font-size:12px; color:var(--accent-dark); margin-left:6px; }
+      .status-hero-prof{ font-size:13px; line-height:1.75; color:#5a4636; }
+      /* ---------- 上部ボタン ---------- */
+      #topBar{
+        position:absolute; top:calc(8px + env(safe-area-inset-top)); right:10px;
+        display:none; gap:8px; z-index:30;
+      }
+      #topBar.show{ display:flex; }
+      .top-btn{
+        border:2px solid rgba(255,255,255,.75);
+        background:rgba(30,20,14,.62);
+        color:#fff; font-size:14px; font-weight:700;
+        border-radius:999px; padding:8px 14px; min-height:40px;
+        backdrop-filter:blur(2px);
+      }
+      .top-btn:active{ transform:scale(.96); }
+      /* ---------- 会話ウィンドウ ---------- */
+      #dialog{
+        position:absolute; left:10px; right:10px;
+        bottom:calc(10px + env(safe-area-inset-bottom));
+        background:var(--dialog-bg);
+        border:2px solid rgba(255,214,170,.55);
+        border-radius:14px;
+        padding:30px 16px 16px;
+        min-height:138px;
+        color:#fff7ec;
+        z-index:20;
+        display:none;
+        cursor:pointer;
+        user-select:none;
+      }
+      #dialog.show{ display:block; }
+      #speaker{
+        position:absolute; top:-15px; left:14px;
+        background:var(--accent);
+        color:#fff; font-weight:800; font-size:15px;
+        padding:5px 16px; border-radius:999px;
+        border:2px solid #ffd9a8;
+        max-width:70%;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      }
+      #speaker.narration{ background:#6b5646; }
+      #dialogText{
+        font-size:17px; line-height:1.75; letter-spacing:.02em;
+        min-height:60px; white-space:pre-wrap; word-break:break-word;
+      }
+      #advanceHint{
+        position:absolute; right:14px; bottom:8px;
+        font-size:13px; color:#ffd9a8;
+        animation:bob 1.1s ease-in-out infinite;
+      }
+      @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(3px);} }
+      /* ---------- 選択肢 ---------- */
+      #choiceLayer{
+        position:absolute; inset:0; z-index:25;
+        display:none; flex-direction:column; align-items:center; justify-content:center;
+        gap:12px; padding:20px;
+        background:rgba(20,12,8,.38);
+      }
+      #choiceLayer.show{ display:flex; }
+      .choice-btn{
+        width:min(92%,520px);
+        background:var(--paper);
+        border:3px solid var(--accent);
+        color:var(--ink);
+        font-size:16px; font-weight:700; line-height:1.5;
+        border-radius:14px; padding:12px 18px;
+        box-shadow:0 6px 0 var(--accent-dark);
+      }
+      .choice-btn:active{ transform:translateY(3px); box-shadow:0 2px 0 var(--accent-dark); }
+      /* ---------- 好感度ポップ ---------- */
+      #popupLayer{ position:absolute; inset:0; pointer-events:none; z-index:40; overflow:hidden; }
+      .aff-pop{
+        position:absolute; left:50%; top:34%;
+        transform:translate(-50%,0);
+        font-size:24px; font-weight:900; color:#ff5d7a;
+        text-shadow:0 2px 0 #fff, 0 0 14px rgba(255,255,255,.9);
+        animation:popfloat 1.5s ease-out forwards;
+        white-space:nowrap;
+      }
+      .aff-pop.down{ color:#7d8aa0; }
+      @keyframes popfloat{
+        0%{ opacity:0; transform:translate(-50%,16px) scale(.7); }
+        18%{ opacity:1; transform:translate(-50%,0) scale(1.12); }
+        32%{ transform:translate(-50%,-4px) scale(1); }
+        75%{ opacity:1; }
+        100%{ opacity:0; transform:translate(-50%,-52px) scale(1); }
+      }
+      /* ---------- ステータス ---------- */
+      #statusModal{
+        position:absolute; inset:0; z-index:50;
+        display:none; align-items:center; justify-content:center;
+        background:rgba(15,9,6,.55); padding:20px;
+      }
+      #statusModal.show{ display:flex; }
+      .status-card{
+        background:var(--paper); border-radius:16px; border:3px solid var(--wood);
+        padding:20px 22px; width:min(92%,400px);
+        box-shadow:0 12px 30px rgba(0,0,0,.4);
+      }
+      .status-card h2{ margin:0 0 12px; font-size:18px; color:var(--accent-dark); }
+      .status-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px dashed #d9c3a5; font-size:16px; }
+      .status-row:last-of-type{ border-bottom:none; }
+      .hearts{ color:#ff5d7a; letter-spacing:2px; font-size:17px; }
+      .hearts .off{ color:#d8cfc4; }
+      .status-close{
+        margin-top:14px; width:100%;
+        background:var(--accent); color:#fff; border:none; border-radius:10px;
+        font-size:16px; font-weight:800; padding:10px;
+      }
+      /* ---------- タイトル / エンディング ---------- */
+      .screen{
+        position:absolute; inset:0; z-index:60;
+        display:none; flex-direction:column; align-items:center; justify-content:center;
+        text-align:center; padding:24px 20px calc(24px + env(safe-area-inset-bottom));
+      }
+      .screen.show{ display:flex; }
+      .game-title{
+        font-size:clamp(27px,7.4vw,42px); font-weight:900; line-height:1.3;
+        color:#fff; margin:4px 0 2px;
+        text-shadow:0 3px 0 var(--accent-dark), 0 6px 14px rgba(120,40,10,.45);
+        letter-spacing:.03em;
+      }
+      .game-sub{ color:#fff; font-weight:700; font-size:14px; margin:2px 0 16px; text-shadow:0 1px 5px rgba(23,43,68,.8), 0 0 12px rgba(23,43,68,.45); }
+      .name-box{
+        background:rgba(255,255,255,.92); border:3px solid var(--wood); border-radius:14px;
+        padding:14px 16px; width:min(92%,360px); margin-bottom:14px;
+      }
+      .name-box label{ display:block; font-size:13px; font-weight:800; color:#7a3a1c; margin-bottom:6px; }
+      .name-box input{
+        width:100%; font-size:18px; font-family:inherit; font-weight:700; text-align:center;
+        border:2px solid #d9c3a5; border-radius:10px; padding:10px; background:#fffdf8; color:var(--ink);
+        min-height:48px;
+      }
+      .start-btn{
+        background:var(--accent); color:#fff; border:none;
+        font-size:20px; font-weight:900; letter-spacing:.08em;
+        padding:14px 54px; border-radius:999px;
+        box-shadow:0 6px 0 var(--accent-dark);
+      }
+      .start-btn:active{ transform:translateY(4px); box-shadow:0 2px 0 var(--accent-dark); }
+      .title-note{ margin-top:16px; font-size:12.5px; color:#8a5a33; line-height:1.7; }
+      #endScreen{ background:linear-gradient(180deg,#2e2440 0%,#5a3350 55%,#a8543c 100%); color:#fff7ec; overflow-y:auto; justify-content:flex-start; }
+      #endScreen .end-label{ font-size:13px; letter-spacing:.35em; color:#ffce9a; font-weight:800; margin-top:auto; }
+      #endScreen .end-btns{ margin-bottom:auto; }
+      #endCard{
+        display:none; flex:none; width:min(88vw,420px); height:auto; max-height:46dvh; object-fit:contain; border-radius:16px;
+        border:3px solid #ffd9a8; box-shadow:0 14px 34px rgba(0,0,0,.45); margin:14px 0 4px;
+      }
+      #endCard.show{ display:block; }
+      #endTitle{ font-size:clamp(24px,6.6vw,36px); font-weight:900; margin:10px 0 6px; line-height:1.4; }
+      #endText{ font-size:15.5px; line-height:1.85; max-width:480px; white-space:pre-wrap; }
+      .end-aff{
+        background:rgba(255,248,239,.12); border:2px solid rgba(255,217,168,.5);
+        border-radius:14px; padding:12px 20px; margin:18px 0 20px; width:min(92%,360px);
+        font-size:15px; line-height:2;
+      }
+      .end-aff .hearts{ font-size:15px; }
+      .end-btns{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+      .end-btns button{
+        border-radius:999px; font-size:16px; font-weight:800; padding:12px 26px;
+        border:3px solid #ffd9a8;
+      }
+      #againBtn{ background:var(--accent); color:#fff; border-color:#ffd9a8; }
+      #toTitleBtn{ background:transparent; color:#fff7ec; }
+      @media (max-height:520px){
+        #charFigure{ height:56dvh; }
+        #charFigure.portrait{ height:auto; width:min(58vw,300px); }
+        #charLayer.portrait-mode{ padding-bottom:138px; }
+        #charFigure.sprite{ height:auto; width:min(64vw,320px); }
+        #charLayer.sprite-mode{ padding-bottom:134px; }
+        #dialog{ min-height:112px; padding-top:24px; }
+        #dialogText{ font-size:15.5px; min-height:48px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app">
+      <!-- 背景レイヤー（JSでSVGを差し込む） -->
+      <div class="bg-layer" id="bg-exterior"></div>
+      <div class="bg-layer" id="bg-interior"></div>
+      <div class="bg-layer" id="bg-school"></div>
+      <div class="bg-layer" id="bg-evening"></div>
+
+      <div id="charLayer"><div id="charFigure"></div></div>
+
+      <div id="topBar">
+        <button class="top-btn" id="statusBtn" type="button">💗 ステータス</button>
+        <button class="top-btn" id="soundBtn" type="button">♪ 音 ON</button>
+      </div>
+
+      <div id="dialog">
+        <div id="speaker">　</div>
+        <div id="dialogText"></div>
+        <div id="advanceHint">▼</div>
+      </div>
+
+      <div id="choiceLayer"></div>
+      <div id="popupLayer"></div>
+
+      <div id="statusModal">
+        <div class="status-card">
+          <h2>みんなの好感度</h2>
+          <div id="statusRows"></div>
+          <button class="status-close" id="statusClose" type="button">閉じる</button>
+        </div>
+      </div>
+
+      <!-- タイトル画面 -->
+      <section class="screen show" id="titleScreen">
+        <div class="title-stage">
+          <img class="title-photo" src="assets/top-shop.jpg" alt="赤いコンテナのピザ屋「あかいろピザ」の外観イラスト" />
+          <div class="title-scrim-top"></div>
+          <div class="title-scrim-bottom"></div>
+          <div class="title-head">
+            <h1 class="game-title">ピザ屋バイトと<br />3人の常連さん</h1>
+            <p class="game-sub">〜 赤いコンテナのお店で始まる、短編ラブストーリー 〜</p>
+          </div>
+          <div class="title-cast">
+            <figure>
+              <img src="assets/hero-body.png" alt="主人公の全身イラスト" />
+              <figcaption id="heroCaption"><span id="heroNameLabel">あなた</span><span class="role">（主人公）</span></figcaption>
+            </figure>
+            <figure>
+              <img src="assets/shiori-body.png" alt="朝倉栞の全身イラスト" />
+              <figcaption>朝倉 栞<span class="role">（先輩）</span></figcaption>
+            </figure>
+            <figure>
+              <img src="assets/hina-body.png" alt="小日向陽菜の全身イラスト" />
+              <figcaption>小日向 陽菜<span class="role">（同級生）</span></figcaption>
+            </figure>
+            <figure>
+              <img src="assets/tsumugi-body.png" alt="白瀬紬の全身イラスト" />
+              <figcaption>白瀬 紬<span class="role">（後輩）</span></figcaption>
+            </figure>
+          </div>
+        </div>
+        <div class="title-panel">
+          <div class="name-box">
+            <label for="nameInput">主人公の名前（バイトの青年）</label>
+            <input id="nameInput" type="text" value="ハルト" maxlength="8" autocomplete="off" aria-label="主人公の名前" />
+          </div>
+          <button class="start-btn" id="startBtn" type="button">バイトをはじめる</button>
+          <p class="title-note">画面タップで会話が進みます。所要時間は5〜10分ほど。<br />選択肢で3人の好感度が変わり、結末が分岐します。</p>
+        </div>
+      </section>
+
+      <!-- エンディング画面 -->
+      <section class="screen" id="endScreen">
+        <div class="end-label">ENDING</div>
+        <img id="endCard" alt="エンドカード" />
+        <h2 id="endTitle"></h2>
+        <p id="endText"></p>
+        <div class="end-aff" id="endAff"></div>
+        <div class="end-btns">
+          <button id="againBtn" type="button">もう一度遊ぶ</button>
+          <button id="toTitleBtn" type="button">タイトルに戻る</button>
+        </div>
+      </section>
+    </main>
+    <script>
+      "use strict";
+      /* ================= 背景SVG ================= */
+      var BG = {
+        exterior:
+        '<svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+        '<defs><linearGradient id="skyE" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4aa3e8"/><stop offset=".6" stop-color="#9fd2f5"/><stop offset="1" stop-color="#dff2fd"/></linearGradient></defs>' +
+        '<rect width="600" height="800" fill="url(#skyE)"/>' +
+        '<g fill="#ffffff" opacity=".92"><ellipse cx="150" cy="100" rx="66" ry="22"/><ellipse cx="196" cy="86" rx="42" ry="18"/><ellipse cx="440" cy="70" rx="80" ry="24"/><ellipse cx="490" cy="56" rx="46" ry="18"/><ellipse cx="300" cy="168" rx="48" ry="15"/></g>' +
+        '<rect x="0" y="636" width="600" height="164" fill="#7c6248"/>' +
+        '<rect x="0" y="636" width="600" height="10" fill="#96795a"/>' +
+        '<rect x="86" y="300" width="424" height="340" rx="10" fill="#d23c22"/>' +
+        '<rect x="86" y="300" width="424" height="340" rx="10" fill="none" stroke="#a92c1a" stroke-width="5"/>' +
+        '<g stroke="#b93320" stroke-width="3" opacity=".5"><line x1="150" y1="306" x2="150" y2="634"/><line x1="214" y1="306" x2="214" y2="634"/><line x1="342" y1="306" x2="342" y2="634"/><line x1="470" y1="306" x2="470" y2="634"/></g>' +
+        '<rect x="68" y="274" width="460" height="28" rx="8" fill="#5d6d7e"/>' +
+        '<rect x="110" y="330" width="140" height="176" rx="6" fill="#fdf6ec"/>' +
+        '<ellipse cx="180" cy="398" rx="33" ry="29" fill="#ffffff" stroke="#3a3230" stroke-width="4"/>' +
+        '<circle cx="168" cy="390" r="4.4" fill="#3a3230"/><circle cx="192" cy="390" r="4.4" fill="#3a3230"/>' +
+        '<path d="M173 404 q7 6 14 0" stroke="#3a3230" stroke-width="3.4" fill="none" stroke-linecap="round"/>' +
+        '<path d="M156 378 q-10 -15 4 -23 M204 378 q10 -15 -4 -23" stroke="#3a3230" stroke-width="5" fill="none" stroke-linecap="round"/>' +
+        '<path d="M209 360 l25 -12 -4 29 z" fill="#e23b25"/>' +
+        '<text x="180" y="482" text-anchor="middle" font-size="15" font-weight="bold" fill="#54443a">Pizza &amp; Sweets</text>' +
+        '<rect x="278" y="344" width="104" height="96" rx="4" fill="#2e2a28"/>' +
+        '<rect x="286" y="352" width="88" height="80" rx="3" fill="#ffe9b8"/>' +
+        '<g fill="#e8a34c"><rect x="293" y="360" width="21" height="16" rx="2"/><rect x="321" y="360" width="21" height="16" rx="2"/><rect x="293" y="384" width="21" height="16" rx="2"/><rect x="321" y="384" width="21" height="16" rx="2"/><rect x="293" y="408" width="21" height="14" rx="2"/><rect x="321" y="408" width="21" height="14" rx="2"/></g>' +
+        '<rect x="404" y="344" width="72" height="296" rx="6" fill="#33302e"/>' +
+        '<circle cx="440" cy="392" r="15" fill="none" stroke="#ff7a5c" stroke-width="3"/>' +
+        '<text x="440" y="396" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#ffbfa8">OPEN</text>' +
+        '<rect x="272" y="540" width="124" height="13" fill="#8a5a33"/>' +
+        '<rect x="282" y="553" width="11" height="87" fill="#8a5a33"/><rect x="375" y="553" width="11" height="87" fill="#8a5a33"/>' +
+        '<g fill="#69a84f"><ellipse cx="120" cy="646" rx="42" ry="17"/><ellipse cx="486" cy="650" rx="44" ry="15"/></g>' +
+        '<g fill="#f2a7c3"><circle cx="112" cy="636" r="6"/><circle cx="132" cy="630" r="5"/><circle cx="492" cy="640" r="6"/></g>' +
+        '<g><rect x="516" y="452" width="84" height="188" fill="#f4f1ea"/><g stroke="#3f5d50" stroke-width="8"><line x1="529" y1="452" x2="529" y2="640"/><line x1="551" y1="452" x2="551" y2="640"/><line x1="573" y1="452" x2="573" y2="640"/></g><rect x="510" y="441" width="96" height="13" rx="5" fill="#5d6d7e"/></g>' +
+        '</svg>',
+        interior:
+        '<svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+        '<defs><linearGradient id="wallI" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e3c2"/><stop offset="1" stop-color="#eecfa3"/></linearGradient></defs>' +
+        '<rect width="600" height="800" fill="url(#wallI)"/>' +
+        '<rect x="0" y="556" width="600" height="244" fill="#9c6b3f"/>' +
+        '<g stroke="#87592f" stroke-width="3" opacity=".5"><line x1="0" y1="612" x2="600" y2="612"/><line x1="0" y1="672" x2="600" y2="672"/><line x1="0" y1="730" x2="600" y2="730"/></g>' +
+        '<g><line x1="150" y1="0" x2="150" y2="66" stroke="#6b4a2a" stroke-width="4"/><circle cx="150" cy="84" r="17" fill="#ffd98c"/><circle cx="150" cy="84" r="25" fill="#ffca66" opacity=".3"/>' +
+        '<line x1="300" y1="0" x2="300" y2="66" stroke="#6b4a2a" stroke-width="4"/><circle cx="300" cy="84" r="17" fill="#ffd98c"/><circle cx="300" cy="84" r="25" fill="#ffca66" opacity=".3"/>' +
+        '<line x1="450" y1="0" x2="450" y2="66" stroke="#6b4a2a" stroke-width="4"/><circle cx="450" cy="84" r="17" fill="#ffd98c"/><circle cx="450" cy="84" r="25" fill="#ffca66" opacity=".3"/></g>' +
+        '<rect x="118" y="160" width="158" height="160" rx="8" fill="#5d4630"/>' +
+        '<rect x="128" y="170" width="138" height="140" rx="5" fill="#fdf3dd"/>' +
+        '<text x="197" y="204" text-anchor="middle" font-size="17" font-weight="bold" fill="#a92c1a">MENU</text>' +
+        '<g stroke="#b09a76" stroke-width="3"><line x1="142" y1="226" x2="252" y2="226"/><line x1="142" y1="248" x2="252" y2="248"/><line x1="142" y1="270" x2="252" y2="270"/><line x1="142" y1="292" x2="228" y2="292"/></g>' +
+        '<rect x="322" y="146" width="172" height="196" rx="10" fill="#4c423c"/>' +
+        '<rect x="334" y="196" width="148" height="128" rx="8" fill="#2b2320"/>' +
+        '<path d="M360 324 q12 -36 26 -13 q7 -27 23 -19 q14 -21 23 2 q18 -15 23 11 q8 12 5 19 z" fill="#f2762e"/>' +
+        '<path d="M380 324 q8 -23 19 -9 q7 -17 18 -6 q10 8 6 15 z" fill="#ffc63f"/>' +
+        '<text x="408" y="180" text-anchor="middle" font-size="16" font-weight="bold" fill="#ffd9a8">石窯</text>' +
+        '<rect x="0" y="462" width="600" height="100" fill="#8a5a33"/>' +
+        '<rect x="0" y="462" width="600" height="17" fill="#a9713f"/>' +
+        '<g><rect x="140" y="420" width="54" height="42" rx="5" fill="#fdf6ec"/><ellipse cx="167" cy="438" rx="17" ry="11" fill="#f2c14e"/><circle cx="161" cy="435" r="3.4" fill="#d8402a"/><circle cx="173" cy="441" r="3.4" fill="#3f7d33"/></g>' +
+        '<g><rect x="408" y="420" width="54" height="42" rx="5" fill="#fdf6ec"/><ellipse cx="435" cy="438" rx="17" ry="11" fill="#f7e3ee"/><circle cx="429" cy="435" r="3.4" fill="#e2709a"/><circle cx="441" cy="441" r="3.4" fill="#e2709a"/></g>' +
+        '<rect x="228" y="402" width="144" height="60" rx="8" fill="#37424e"/>' +
+        '<rect x="240" y="413" width="120" height="27" rx="4" fill="#bfe8d8"/>' +
+        '<text x="300" y="432" text-anchor="middle" font-size="13" font-weight="bold" fill="#37424e">いらっしゃいませ</text>' +
+        '</svg>',
+        school:
+        '<svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+        '<defs><linearGradient id="skyS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6db6ef"/><stop offset="1" stop-color="#d8f0fc"/></linearGradient></defs>' +
+        '<rect width="600" height="800" fill="url(#skyS)"/>' +
+        '<g fill="#fff" opacity=".9"><ellipse cx="450" cy="80" rx="62" ry="19"/><ellipse cx="140" cy="56" rx="52" ry="15"/></g>' +
+        '<rect x="128" y="196" width="344" height="252" fill="#f3ead9"/>' +
+        '<rect x="112" y="176" width="376" height="24" fill="#b0512f"/>' +
+        '<g fill="#7fa8c9"><rect x="150" y="222" width="44" height="36"/><rect x="218" y="222" width="44" height="36"/><rect x="286" y="222" width="44" height="36"/><rect x="354" y="222" width="44" height="36"/><rect x="150" y="282" width="44" height="36"/><rect x="218" y="282" width="44" height="36"/><rect x="354" y="282" width="44" height="36"/></g>' +
+        '<rect x="278" y="356" width="44" height="92" fill="#7a4a2a"/>' +
+        '<rect x="112" y="392" width="26" height="238" fill="#cbb491"/><rect x="462" y="392" width="26" height="238" fill="#cbb491"/>' +
+        '<rect x="98" y="374" width="54" height="20" fill="#a98f63"/><rect x="448" y="374" width="54" height="20" fill="#a98f63"/>' +
+        '<rect x="0" y="626" width="600" height="174" fill="#b9a888"/>' +
+        '<rect x="238" y="626" width="124" height="174" fill="#c9b995"/>' +
+        '<g><circle cx="140" cy="478" r="50" fill="#f6c6d8"/><circle cx="176" cy="450" r="36" fill="#f9d3e2"/><circle cx="106" cy="450" r="32" fill="#f9d3e2"/><rect x="132" y="518" width="15" height="112" fill="#7a4a2a"/></g>' +
+        '<g><circle cx="466" cy="486" r="44" fill="#f6c6d8"/><circle cx="496" cy="458" r="30" fill="#f9d3e2"/><rect x="458" y="522" width="14" height="108" fill="#7a4a2a"/></g>' +
+        '<g fill="#e2709a" opacity=".75"><circle cx="180" cy="690" r="4"/><circle cx="300" cy="724" r="4"/><circle cx="420" cy="696" r="4"/><circle cx="500" cy="736" r="4"/><circle cx="350" cy="768" r="4"/></g>' +
+        '</svg>',
+        evening:
+        '<svg viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+        '<defs><linearGradient id="skyV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3c3a63"/><stop offset=".55" stop-color="#a14e63"/><stop offset="1" stop-color="#f08a4b"/></linearGradient></defs>' +
+        '<rect width="600" height="800" fill="url(#skyV)"/>' +
+        '<circle cx="392" cy="420" r="38" fill="#ffb35c"/><circle cx="392" cy="420" r="58" fill="#ffb35c" opacity=".25"/>' +
+        '<g fill="#fff"><circle cx="80" cy="66" r="2.4"/><circle cx="190" cy="42" r="1.8"/><circle cx="300" cy="86" r="2.2"/><circle cx="410" cy="48" r="1.8"/><circle cx="490" cy="96" r="2.2"/><circle cx="546" cy="40" r="1.8"/><circle cx="140" cy="130" r="1.8"/><circle cx="520" cy="150" r="2.2"/></g>' +
+        '<rect x="0" y="556" width="600" height="244" fill="#3a3040"/>' +
+        '<rect x="0" y="556" width="600" height="8" fill="#57465e"/>' +
+        '<rect x="108" y="298" width="304" height="262" rx="8" fill="#8e2f1e"/>' +
+        '<rect x="96" y="276" width="328" height="24" rx="7" fill="#2f2b3a"/>' +
+        '<rect x="132" y="330" width="106" height="102" rx="5" fill="#ffd98c"/>' +
+        '<rect x="132" y="330" width="106" height="102" rx="5" fill="none" stroke="#5d3423" stroke-width="4"/>' +
+        '<line x1="185" y1="330" x2="185" y2="432" stroke="#5d3423" stroke-width="4"/>' +
+        '<rect x="268" y="326" width="56" height="234" rx="5" fill="#241f22"/>' +
+        '<circle cx="296" cy="352" r="11" fill="none" stroke="#ff9a76" stroke-width="3"/>' +
+        '<rect x="340" y="356" width="54" height="44" rx="4" fill="#ffe9b8"/>' +
+        '<line x1="446" y1="330" x2="446" y2="560" stroke="#241f2e" stroke-width="6"/>' +
+        '<circle cx="446" cy="322" r="10" fill="#ffd98c"/><circle cx="446" cy="322" r="20" fill="#ffd98c" opacity=".28"/>' +
+        '<ellipse cx="446" cy="578" rx="40" ry="9" fill="#ffd98c" opacity=".22"/>' +
+        '<g fill="#241f2e"><rect x="486" y="392" width="56" height="168"/><rect x="548" y="362" width="52" height="198"/></g>' +
+        '<g fill="#ffd98c"><rect x="497" y="406" width="14" height="18"/><rect x="519" y="406" width="14" height="18"/><rect x="559" y="378" width="14" height="19"/></g>' +
+        '</svg>'
+      };
+
+      document.getElementById("bg-exterior").innerHTML = '<img src="assets/top-shop.jpg" alt="" />';
+      document.getElementById("bg-interior").innerHTML = '<img src="assets/scene-interior.jpg" alt="" />';
+      document.getElementById("bg-school").innerHTML = BG.school;
+      document.getElementById("bg-evening").innerHTML = '<img src="assets/scene-night.jpg" alt="" />';
+      /* ================= 立ち絵SVG ================= */
+      function faceParts(expr, blushColor){
+        var eyes, mouth, blush = "";
+        if(expr === "smile"){
+          eyes = '<path d="M118 148 q10 -11 20 0" stroke="#3a3230" stroke-width="5" fill="none" stroke-linecap="round"/>' +
+                 '<path d="M162 148 q10 -11 20 0" stroke="#3a3230" stroke-width="5" fill="none" stroke-linecap="round"/>';
+          mouth = '<path d="M138 172 q12 12 24 0 q-3 13 -12 13 q-9 0 -12 -13z" fill="#a34a3a"/>';
+        } else if(expr === "shy"){
+          eyes = '<ellipse cx="128" cy="150" rx="5" ry="7" fill="#3a3230"/><ellipse cx="172" cy="150" rx="5" ry="7" fill="#3a3230"/>' +
+                 '<path d="M112 132 q14 -6 26 -1 M162 131 q14 -5 26 1" stroke="#3a3230" stroke-width="3.4" fill="none" stroke-linecap="round" opacity=".65"/>';
+          mouth = '<path d="M143 176 q7 4 14 0" stroke="#a34a3a" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+        } else {
+          eyes = '<ellipse cx="128" cy="150" rx="5.5" ry="8" fill="#3a3230"/><ellipse cx="172" cy="150" rx="5.5" ry="8" fill="#3a3230"/>' +
+                 '<circle cx="130" cy="147" r="2" fill="#fff"/><circle cx="174" cy="147" r="2" fill="#fff"/>';
+          mouth = '<path d="M141 174 q9 6 18 0" stroke="#a34a3a" stroke-width="3.8" fill="none" stroke-linecap="round"/>';
+        }
+        blush = '<ellipse cx="106" cy="166" rx="11" ry="6" fill="' + (blushColor || "#f6a8a0") + '" opacity=".55"/>' +
+                '<ellipse cx="194" cy="166" rx="11" ry="6" fill="' + (blushColor || "#f6a8a0") + '" opacity=".55"/>';
+        var brows = '<path d="M114 130 q13 -6 27 -2 M159 128 q14 -4 27 2" stroke="#3a3230" stroke-width="3.6" fill="none" stroke-linecap="round" opacity=".8"/>';
+        return brows + eyes + mouth + blush;
+      }
+      var CHARACTERS = {
+        asakura: function(expr){
+          var eyes, mouth, brows, extra = "", blushOp = ".45";
+          if(expr === "tease"){
+            brows = '<path d="M112 126 q14 -9 28 -3 M160 130 q13 -4 26 2" stroke="#4a3423" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="151" rx="6" ry="7" fill="#a8641e"/><ellipse cx="172" cy="151" rx="6" ry="7" fill="#a8641e"/><circle cx="130" cy="148" r="2" fill="#ffe9c4"/><circle cx="174" cy="148" r="2" fill="#ffe9c4"/><path d="M116 143 q12 -5 24 -1 M160 142 q12 -4 24 1" stroke="#4a3423" stroke-width="3" fill="none" stroke-linecap="round"/>';
+            mouth = '<path d="M140 176 q12 3 22 -3" stroke="#a34a3a" stroke-width="4" fill="none" stroke-linecap="round"/>';
+            extra = '<ellipse cx="203" cy="190" rx="10" ry="13" fill="#ffe9d8"/><rect x="196" y="160" width="8" height="26" rx="4" fill="#ffe9d8" transform="rotate(14 200 173)"/>';
+          } else if(expr === "blush"){
+            brows = '<path d="M114 128 q13 -7 27 -3 M159 125 q14 -4 27 3" stroke="#4a3423" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="153" rx="5.5" ry="7" fill="#a8641e"/><ellipse cx="172" cy="153" rx="5.5" ry="7" fill="#a8641e"/><circle cx="129" cy="155" r="1.8" fill="#ffe9c4"/><circle cx="173" cy="155" r="1.8" fill="#ffe9c4"/>';
+            mouth = '<ellipse cx="150" cy="178" rx="6" ry="4.4" fill="#a34a3a"/>';
+            blushOp = ".85";
+            extra = '<ellipse cx="82" cy="158" rx="10" ry="14" fill="#ffe9d8"/><path d="M76 146 q6 4 12 1 M75 158 q6 4 12 1" stroke="#e8b48f" stroke-width="2.4" fill="none"/>';
+          } else if(expr === "serious"){
+            brows = '<path d="M114 132 q13 -3 26 3 M160 135 q13 -6 26 -3" stroke="#4a3423" stroke-width="3.8" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="151" rx="5.5" ry="7.5" fill="#a8641e"/><ellipse cx="172" cy="151" rx="5.5" ry="7.5" fill="#a8641e"/><circle cx="130" cy="149" r="1.7" fill="#ffe9c4"/><circle cx="174" cy="149" r="1.7" fill="#ffe9c4"/>';
+            mouth = '<path d="M142 178 q8 2 16 0" stroke="#a34a3a" stroke-width="3.8" fill="none" stroke-linecap="round"/>';
+            blushOp = ".18";
+          } else {
+            brows = '<path d="M114 129 q13 -6 27 -2 M159 127 q14 -4 27 2" stroke="#4a3423" stroke-width="3.6" fill="none" stroke-linecap="round" opacity=".85"/>';
+            eyes = '<ellipse cx="128" cy="150" rx="6" ry="8" fill="#a8641e"/><ellipse cx="172" cy="150" rx="6" ry="8" fill="#a8641e"/><circle cx="130" cy="147" r="2.1" fill="#fff"/><circle cx="174" cy="147" r="2.1" fill="#fff"/>';
+            mouth = '<path d="M140 174 q10 7 20 0" stroke="#a34a3a" stroke-width="3.8" fill="none" stroke-linecap="round"/>';
+          }
+          var blush = '<ellipse cx="105" cy="167" rx="12" ry="6.5" fill="#f2a08e" opacity="' + blushOp + '"/><ellipse cx="195" cy="167" rx="12" ry="6.5" fill="#f2a08e" opacity="' + blushOp + '"/>';
+          return '<svg viewBox="0 0 300 430" aria-hidden="true">' +
+          '<path d="M78 92 q-14 150 -4 300 l30 0 q-6 -160 -2 -238z M222 92 q14 150 4 300 l-30 0 q6 -160 2 -238z" fill="#5b4232"/>' +
+          '<path d="M96 300 q54 -24 108 0 l10 96 -128 0z" fill="#77804f"/>' +
+          '<path d="M122 292 l28 34 28 -34 6 108 -68 0z" fill="#f6ecd9"/>' +
+          '<g stroke="#e3d2ac" stroke-width="2.4"><line x1="136" y1="330" x2="136" y2="392"/><line x1="150" y1="334" x2="150" y2="396"/><line x1="164" y1="330" x2="164" y2="392"/></g>' +
+          '<path d="M96 300 q-8 48 -4 96 l24 0 q-2 -52 6 -104z M204 300 q8 48 4 96 l-24 0 q2 -52 -6 -104z" fill="#6d7747"/>' +
+          '<g fill="#4c3a26"><circle cx="112" cy="322" r="3.4"/><circle cx="110" cy="352" r="3.4"/><circle cx="188" cy="322" r="3.4"/><circle cx="190" cy="352" r="3.4"/></g>' +
+          '<path d="M196 296 L96 402" stroke="#7a4a2a" stroke-width="9" stroke-linecap="round"/>' +
+          '<rect x="34" y="356" width="56" height="60" rx="7" fill="#8a5a33"/><rect x="34" y="356" width="56" height="20" rx="7" fill="#77502c"/><rect x="56" y="366" width="12" height="9" fill="#d9a441"/>' +
+          '<rect x="78" y="398" width="144" height="32" fill="#4a3226"/><rect x="78" y="392" width="144" height="10" fill="#3a2618"/><rect x="140" y="390" width="20" height="14" rx="2" fill="none" stroke="#d9a441" stroke-width="3"/>' +
+          '<path d="M128 196 q22 12 44 0 l0 34 q-22 10 -44 0z" fill="#ffe3d0"/>' +
+          '<ellipse cx="150" cy="138" rx="62" ry="66" fill="#ffe9d8"/>' +
+          brows + eyes + mouth + blush + extra +
+          '<path d="M84 146 q-6 -88 66 -94 q72 6 66 94 q-2 -40 -14 -56 q-24 16 -52 15 q-28 1 -52 -15 q-12 16 -14 56z" fill="#5b4232"/>' +
+          '<path d="M90 120 q6 74 -2 128 q10 4 16 -2 q-4 -66 0 -112z M210 120 q-6 74 2 128 q-10 4 -16 -2 q4 -66 0 -112z" fill="#5b4232"/>' +
+          '<path d="M84 240 q-4 60 2 108 M216 240 q4 60 -2 108" stroke="#5b4232" stroke-width="13" fill="none" stroke-linecap="round"/>' +
+          '<g fill="#d9a441" stroke="#a87b24" stroke-width="1.6"><path d="M94 74 l14 8 -14 8 z"/><path d="M122 82 l-14 8 14 8 z"/><circle cx="108" cy="86" r="4"/></g>' +
+          '<g fill="#d9a441" stroke="#a87b24" stroke-width="1.4"><path d="M84 100 l11 6 -11 7 z"/><path d="M106 106 l-11 7 11 6 z"/><circle cx="95" cy="110" r="3.2"/></g>' +
+          '</svg>';
+        },
+        hina: function(expr){
+          if(expr === "smile") expr = "normal";
+          var eyes, mouth, brows, extra = "";
+          if(expr === "excited"){
+            brows = '<path d="M114 126 q13 -7 27 -3 M159 123 q14 -4 27 3" stroke="#6b4423" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="150" rx="6.5" ry="8.5" fill="#b06a28"/><ellipse cx="172" cy="150" rx="6.5" ry="8.5" fill="#b06a28"/><path d="M128 143 l2.4 4.4 4.8 0 -3.6 3.4 1.2 4.8 -4.8 -2.8 -4.8 2.8 1.2 -4.8 -3.6 -3.4 4.8 0z" fill="#fff"/><path d="M172 143 l2.4 4.4 4.8 0 -3.6 3.4 1.2 4.8 -4.8 -2.8 -4.8 2.8 1.2 -4.8 -3.6 -3.4 4.8 0z" fill="#fff"/>';
+            mouth = '<path d="M136 170 q14 14 28 0 q-3 15 -14 15 q-11 0 -14 -15z" fill="#a34a3a"/>';
+            extra = '<g><path d="M206 182 l44 14 -34 26 q-12 -18 -10 -40z" fill="#f2c14e"/><path d="M206 182 l44 14 -6 10 -40 -12z" fill="#d98e3a"/><circle cx="222" cy="198" r="4" fill="#d8402a"/><path d="M230 204 q5 -6 10 -2 q-4 6 -10 2z" fill="#3f7d33"/><ellipse cx="222" cy="228" rx="10" ry="13" fill="#ffe3c8"/></g><g fill="#f7cf3f"><path d="M96 108 l2.4 5 5.4 .6 -4 3.7 1.1 5.3 -4.9 -2.7 -4.9 2.7 1.1 -5.3 -4 -3.7 5.4 -.6z"/><path d="M216 96 l2 4.2 4.5 .5 -3.3 3.1 .9 4.4 -4.1 -2.2 -4.1 2.2 .9 -4.4 -3.3 -3.1 4.5 -.5z"/></g>';
+          } else if(expr === "blush"){
+            brows = '<path d="M114 128 q13 -6 27 -2 M159 126 q14 -4 27 2" stroke="#6b4423" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<path d="M116 150 q12 10 24 0 M160 150 q12 10 24 0" stroke="#6b4423" stroke-width="4.4" fill="none" stroke-linecap="round"/>';
+            mouth = '<path d="M141 176 q9 6 18 0" stroke="#a34a3a" stroke-width="3.8" fill="none" stroke-linecap="round"/>';
+            extra = '<path d="M208 124 q28 -6 32 20 q2 17 -11 26 l-14 -9 q9 -21 -7 -37z" fill="#dfa81f"/><ellipse cx="226" cy="118" rx="10" ry="12" fill="#ffe3c8"/>';
+          } else if(expr === "serious"){
+            brows = '<path d="M114 130 q13 -4 26 2 M160 132 q13 -6 26 -2" stroke="#6b4423" stroke-width="3.8" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="149" rx="6" ry="8" fill="#b06a28"/><ellipse cx="172" cy="149" rx="6" ry="8" fill="#b06a28"/><circle cx="130" cy="146" r="2" fill="#fff"/><circle cx="174" cy="146" r="2" fill="#fff"/>';
+            mouth = '<path d="M143 179 q7 2 14 0" stroke="#a34a3a" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            extra = '<ellipse cx="152" cy="198" rx="10" ry="12" fill="#ffe3c8"/><rect x="148" y="170" width="8" height="24" rx="4" fill="#ffe3c8"/>';
+          } else {
+            brows = '<path d="M114 127 q13 -7 27 -3 M159 124 q14 -4 27 3" stroke="#6b4423" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="150" rx="6" ry="8.5" fill="#b06a28"/><ellipse cx="172" cy="150" rx="6" ry="8.5" fill="#b06a28"/><circle cx="130" cy="147" r="2.1" fill="#fff"/><circle cx="174" cy="147" r="2.1" fill="#fff"/>';
+            mouth = '<path d="M135 170 q15 15 30 0 q-3 16 -15 16 q-12 0 -15 -16z" fill="#a34a3a"/>';
+          }
+          var blush = '<ellipse cx="105" cy="167" rx="12" ry="6.5" fill="#f6a08e" opacity="' + (expr === "blush" ? ".9" : ".5") + '"/><ellipse cx="195" cy="167" rx="12" ry="6.5" fill="#f6a08e" opacity="' + (expr === "blush" ? ".9" : ".5") + '"/>';
+          return '<svg viewBox="0 0 300 430" aria-hidden="true">' +
+          '<path d="M212 66 q44 6 46 52 q2 40 -22 58 l-16 -6 q12 -44 -2 -78z" fill="#a05c2c"/>' +
+          '<path d="M90 296 q60 -26 120 0 l12 104 -144 0z" fill="#dfa81f"/>' +
+          '<path d="M120 290 l30 36 30 -36 5 110 -70 0z" fill="#fdfdf8"/>' +
+          '<g fill="#8a5a33"><circle cx="112" cy="318" r="3.4"/><circle cx="110" cy="348" r="3.4"/><circle cx="188" cy="318" r="3.4"/><circle cx="190" cy="348" r="3.4"/></g>' +
+          '<path d="M108 302 L62 320" stroke="#e7dcc2" stroke-width="7" stroke-linecap="round"/>' +
+          '<g><rect x="30" y="318" width="58" height="66" rx="6" fill="#f3ead6"/><rect x="30" y="318" width="58" height="16" rx="6" fill="#e7dcc2"/><circle cx="59" cy="356" r="10" fill="#d8402a"/><path d="M53 348 q6 -6 12 0" stroke="#3f7d33" stroke-width="3" fill="none"/></g>' +
+          '<rect x="78" y="400" width="144" height="30" fill="#3f6390"/><rect x="78" y="394" width="144" height="9" fill="#7a4a2a"/>' +
+          '<path d="M128 194 q22 12 44 0 l0 34 q-22 10 -44 0z" fill="#ffdcbd"/>' +
+          '<ellipse cx="150" cy="138" rx="62" ry="65" fill="#ffe3c8"/>' +
+          brows + eyes + mouth + blush + extra +
+          '<path d="M84 148 q-10 -86 62 -94 q10 -1 20 1 q58 10 52 80 q-1 14 -6 22 q-12 2 -16 -10 q3 -30 -8 -46 q-50 16 -82 -4 q-8 20 -8 40 q-2 14 -14 11z" fill="#a05c2c"/>' +
+          '<path d="M90 128 q4 44 -2 76 M210 128 q-4 44 2 76" stroke="#a05c2c" stroke-width="13" fill="none" stroke-linecap="round"/>' +
+          '<circle cx="216" cy="66" r="10" fill="#f7cf3f"/><circle cx="216" cy="66" r="5" fill="#eab54c"/>' +
+          '</svg>';
+        },
+        aoi: function(expr){
+          if(expr === "shy") expr = "flustered";
+          var eyes, mouth, brows, extra = "";
+          if(expr === "flustered"){
+            brows = '<path d="M114 128 q13 -7 27 -3 M159 125 q14 -4 27 3" stroke="#3c4152" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="150" rx="6" ry="8.5" fill="#5a7186"/><ellipse cx="172" cy="150" rx="6" ry="8.5" fill="#5a7186"/><circle cx="130" cy="147" r="2" fill="#fff"/><circle cx="174" cy="147" r="2" fill="#fff"/>';
+            mouth = '<ellipse cx="150" cy="178" rx="5" ry="4" fill="#a34a3a"/>';
+            extra = '<path d="M218 136 q7 10 0 16 q-7 -6 0 -16z" fill="#9fd2f5"/>';
+          } else if(expr === "blush"){
+            brows = '<path d="M114 130 q13 -6 27 -2 M159 128 q14 -4 27 2" stroke="#3c4152" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<ellipse cx="128" cy="153" rx="5.5" ry="7" fill="#5a7186"/><ellipse cx="172" cy="153" rx="5.5" ry="7" fill="#5a7186"/><circle cx="129" cy="155" r="1.8" fill="#fff"/><circle cx="173" cy="155" r="1.8" fill="#fff"/>';
+            mouth = '<path d="M144 176 q6 3 12 0" stroke="#a34a3a" stroke-width="3.4" fill="none" stroke-linecap="round"/>';
+            extra = '<g><rect x="112" y="184" width="76" height="52" rx="5" fill="#d9c39a"/><rect x="112" y="184" width="76" height="52" rx="5" fill="none" stroke="#b39b6b" stroke-width="2.4"/><g fill="#8a734f"><circle cx="120" cy="192" r="1.8"/><circle cx="120" cy="202" r="1.8"/><circle cx="120" cy="212" r="1.8"/><circle cx="120" cy="222" r="1.8"/><circle cx="120" cy="232" r="1.8"/></g><ellipse cx="156" cy="208" rx="14" ry="10" fill="#f2c14e" opacity=".85"/></g>';
+          } else if(expr === "smile"){
+            brows = '<path d="M114 127 q13 -7 27 -3 M159 124 q14 -4 27 3" stroke="#3c4152" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+            eyes = '<path d="M116 150 q12 -11 24 0 M160 150 q12 -11 24 0" stroke="#3c4152" stroke-width="4.6" fill="none" stroke-linecap="round"/>';
+            mouth = '<path d="M135 170 q15 15 30 0 q-3 16 -15 16 q-12 0 -15 -16z" fill="#a34a3a"/>';
+          } else {
+            brows = '<path d="M114 129 q13 -6 27 -2 M159 127 q14 -4 27 2" stroke="#3c4152" stroke-width="3.6" fill="none" stroke-linecap="round" opacity=".85"/>';
+            eyes = '<ellipse cx="128" cy="150" rx="6" ry="8" fill="#5a7186"/><ellipse cx="172" cy="150" rx="6" ry="8" fill="#5a7186"/><circle cx="130" cy="147" r="2.1" fill="#fff"/><circle cx="174" cy="147" r="2.1" fill="#fff"/>';
+            mouth = '<path d="M142 175 q8 5 16 0" stroke="#a34a3a" stroke-width="3.6" fill="none" stroke-linecap="round"/>';
+          }
+          var blush = '<ellipse cx="105" cy="167" rx="12" ry="6.5" fill="#f2a0a8" opacity="' + (expr === "blush" ? ".95" : ".4") + '"/><ellipse cx="195" cy="167" rx="12" ry="6.5" fill="#f2a0a8" opacity="' + (expr === "blush" ? ".95" : ".4") + '"/>';
+          return '<svg viewBox="0 0 300 430" aria-hidden="true">' +
+          '<path d="M86 100 q-10 110 2 206 l24 0 q-5 -110 -2 -176z M214 100 q10 110 -2 206 l-24 0 q5 -110 2 -176z" fill="#2e3242"/>' +
+          '<path d="M92 298 q58 -26 116 0 l12 100 -140 0z" fill="#5d7186"/>' +
+          '<path d="M124 290 q26 14 52 0 l4 18 q-30 12 -60 0z" fill="#ffffff"/>' +
+          '<path d="M196 296 L104 400" stroke="#e9dfc8" stroke-width="8" stroke-linecap="round"/>' +
+          '<rect x="36" y="352" width="54" height="58" rx="7" fill="#f1e8d2"/><rect x="36" y="352" width="54" height="18" rx="7" fill="#e2d5b8"/><rect x="57" y="362" width="12" height="9" fill="#c9a44c"/>' +
+          '<g><rect x="114" y="306" width="72" height="88" rx="5" fill="#d9c39a"/><rect x="114" y="306" width="72" height="88" rx="5" fill="none" stroke="#b39b6b" stroke-width="2.6"/><g fill="#8a734f"><circle cx="122" cy="316" r="1.9"/><circle cx="122" cy="328" r="1.9"/><circle cx="122" cy="340" r="1.9"/><circle cx="122" cy="352" r="1.9"/><circle cx="122" cy="364" r="1.9"/><circle cx="122" cy="376" r="1.9"/></g><ellipse cx="154" cy="344" rx="17" ry="12" fill="#f2c14e"/><circle cx="148" cy="340" r="3.2" fill="#d8402a"/><circle cx="160" cy="348" r="3.2" fill="#3f7d33"/></g>' +
+          '<rect x="80" y="400" width="140" height="30" fill="#33333a"/><g stroke="#222228" stroke-width="2.6"><line x1="98" y1="402" x2="98" y2="428"/><line x1="118" y1="402" x2="118" y2="428"/><line x1="138" y1="402" x2="138" y2="428"/><line x1="158" y1="402" x2="158" y2="428"/><line x1="178" y1="402" x2="178" y2="428"/><line x1="198" y1="402" x2="198" y2="428"/></g>' +
+          '<path d="M128 196 q22 12 44 0 l0 32 q-22 10 -44 0z" fill="#ffe3d0"/>' +
+          '<ellipse cx="150" cy="138" rx="60" ry="64" fill="#ffead9"/>' +
+          brows + eyes + mouth + blush + extra +
+          '<path d="M88 142 q-4 -84 62 -88 q66 4 62 88 q-4 -42 -18 -56 q-42 12 -84 -2 q-16 14 -22 58z" fill="#2e3242"/>' +
+          '<path d="M94 124 q2 58 -3 100 l15 0 q-1 -52 2 -84z M206 124 q-2 58 3 100 l-15 0 q1 -52 -2 -84z" fill="#2e3242"/>' +
+          '<g fill="#d7dde3" stroke="#9aa4ac" stroke-width="1.4"><rect x="196" y="86" width="16" height="5" rx="2.5" transform="rotate(24 204 88)"/><rect x="188" y="102" width="16" height="5" rx="2.5" transform="rotate(24 196 104)"/></g>' +
+          '</svg>';
+        }
+      };
+      /* ================= 音（WebAudio合成） ================= */
+      var AudioSys = {
+        ctx:null, master:null, musicGain:null, on:true, timer:null, step:0,
+        init:function(){
+          if(this.ctx) return;
+          try{
+            var AC = window.AudioContext || window.webkitAudioContext;
+            if(!AC) return;
+            this.ctx = new AC();
+            this.master = this.ctx.createGain(); this.master.gain.value = 0.9;
+            this.master.connect(this.ctx.destination);
+            this.musicGain = this.ctx.createGain(); this.musicGain.gain.value = 0.16;
+            this.musicGain.connect(this.master);
+          }catch(e){ this.ctx = null; }
+        },
+        resume:function(){
+          this.init();
+          if(this.ctx && this.ctx.state === "suspended"){ this.ctx.resume(); }
+        },
+        tone:function(freq, time, dur, type, vol, dest){
+          if(!this.ctx) return;
+          var o = this.ctx.createOscillator(), g = this.ctx.createGain();
+          o.type = type || "sine"; o.frequency.value = freq;
+          g.gain.setValueAtTime(0.0001, time);
+          g.gain.exponentialRampToValueAtTime(vol, time + 0.03);
+          g.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+          o.connect(g); g.connect(dest || this.master);
+          o.start(time); o.stop(time + dur + 0.05);
+        },
+        blip:function(){ if(this.on && this.ctx){ this.tone(660, this.ctx.currentTime, 0.07, "sine", 0.05); } },
+        pop:function(good){
+          if(!this.on || !this.ctx) return;
+          var t = this.ctx.currentTime;
+          if(good){ this.tone(880, t, 0.12, "sine", 0.09); this.tone(1318, t + 0.08, 0.18, "sine", 0.09); }
+          else { this.tone(330, t, 0.14, "sine", 0.06); }
+        },
+        startMusic:function(){
+          if(!this.ctx || this.timer) return;
+          var chords = [
+            [261.6, 329.6, 392.0], [220.0, 261.6, 329.6],
+            [174.6, 220.0, 261.6], [196.0, 246.9, 293.7]
+          ];
+          var self = this;
+          var playBar = function(){
+            if(!self.ctx) return;
+            var t = self.ctx.currentTime + 0.06;
+            var ch = chords[self.step % 4];
+            for(var i = 0; i < ch.length; i++){ self.tone(ch[i], t, 1.9, "triangle", 0.05, self.musicGain); }
+            var arp = [ch[0] * 2, ch[1] * 2, ch[2] * 2, ch[1] * 2];
+            for(var j = 0; j < 4; j++){ self.tone(arp[j], t + j * 0.48, 0.4, "sine", 0.028, self.musicGain); }
+            self.tone(ch[0] / 2, t, 1.9, "sine", 0.05, self.musicGain);
+            self.step++;
+          };
+          playBar();
+          this.timer = setInterval(playBar, 1920);
+        },
+        stopMusic:function(){ if(this.timer){ clearInterval(this.timer); this.timer = null; } }
+      };
+      /* ================= シナリオ ================= */
+      /* step: {bg} {ch,ex} {sp,tx} {choice:[{label,fx,steps}]} {finale:true} */
+      var SCRIPT = [
+        { bg:"exterior" },
+        { sp:null, tx:"春。調理専門学校の近くにある、小さなピザ屋「あかいろピザ」。\n赤いコンテナのお店の前で、{name}は深呼吸をした。" },
+        { ch:"hero", ex:"normal" },
+        { sp:"me", tx:"（俺は{name}、20歳。調理専門学校の2年生。今日からこのピザ屋で働き始める、新入りバイトだ）" },
+        { sp:"me", tx:"（今日からここでバイトか……。ピザ、まだうまく焼けないけど、大丈夫かな）" },
+        { sp:"me", tx:"（不器用だけど、何事にも一生懸命やる。それだけは負けない……！）" },
+        { ch:"manager", ex:"genki" },
+        { sp:"マスター", tx:"お、来たね新入りくん。エプロンはそこ。初日は緊張するだろうけど、まずは笑顔だよ、笑顔。" },
+        { sp:"me", tx:"は、はい！ よろしくお願いします！" },
+        { sp:"マスター", tx:"うちは学生さんのお客さんが多いんだ。常連さんもね。……さあ、開店だ。" },
+        { ch:null },
+        { bg:"interior" },
+        { sp:null, tx:"―― バイト初日。最初のお客さんは、店の常連で、学校の先輩でもある朝倉栞さんだった。" },
+        /* ===== 栞・出会い ===== */
+        { ch:"asakura", ex:"tease" },
+        { sp:"栞", tx:"あら、新しい子？ ……ふふ、エプロンが曲がってるわよ。" },
+        { sp:"me", tx:"えっ、あ、本当だ。す、すみません……！" },
+        { sp:"栞", tx:"謝らなくていいの。よく来る常連だから、顔を覚えてちょうだい。……ねえ、新入りくん。" },
+        { choice:[
+          { label:"「はい、先輩！なんでも聞いてください」", fx:{ asakura:1 }, steps:[
+            { sp:"栞", tx:"あら、元気がいいのね。……いいわ、その意気。そのうち私の好みも覚えてもらおうかしら。" },
+            { sp:null, tx:"栞は楽しそうに笑った。" }
+          ]},
+          { label:"（緊張で声が出ない……）", fx:{}, steps:[
+            { sp:"栞", tx:"……ふふ、固まっちゃった。まあ、焦らなくていいわ。少しずつ慣れていきましょ。" },
+            { sp:null, tx:"栞は呆れたように、でも優しく微笑んだ。" }
+          ]}
+        ]},
+        { sp:"栞", tx:"じゃあ注文ね。シシリアーナ……アンチョビとオリーブの、大人の味のやつ。いつもの、って言えば通じるようにしておいて。" },
+        { choice:[
+          { label:"「いつもの、ですね。覚えました！」", fx:{ asakura:1 }, steps:[
+            { sp:"栞", tx:"あら、頼もしい。……期待してるわよ、新入りくん。" },
+            { sp:null, tx:"（メモ帳に大きく書いた。『栞先輩＝シシリアーナ』）" }
+          ]},
+          { label:"「シシリアーナ……えっと、もう一度言ってもらえますか？」", fx:{}, steps:[
+            { sp:"栞", tx:"ふふ、仕方ないわね。アンチョビとオリーブ。……次は覚えててちょうだい？" },
+            { sp:null, tx:"（メモ帳に書いた。今度こそ覚える……！）" }
+          ]}
+        ]},
+        { ch:"asakura", ex:"normal" },
+        { sp:"栞", tx:"焼き上がり、楽しみにしてる。……下手でもいいのよ。気持ちがこもってれば、ね。" },
+        { ch:null },
+        /* ===== 主人公・初めての窯（焦げピザ） ===== */
+        { ch:"hero", ex:"panic" },
+        { sp:"me", tx:"（……うわっ、や、やっちゃった……！ 窯の火が強すぎて、栞先輩のシシリアーナ、縁が真っ黒に焦げてる……！）" },
+        { ch:"manager", ex:"craft" },
+        { sp:"マスター", tx:"失敗しても大丈夫。次の一枚、焼いてみよう！" },
+        { ch:"hero", ex:"serious" },
+        { sp:"me", tx:"す、すみません……！ まだ上手く焼けないけど……次は、もっとおいしくします！" },
+        { sp:null, tx:"焼き直した二枚目は、なんとか形になった。栞は「気持ちがこもってる」と言って、笑って食べてくれた。" },
+        { ch:null },
+        /* ===== 陽菜・出会い ===== */
+        { bg:"exterior" },
+        { sp:null, tx:"―― 数日後。バイト帰りの店の前で、同級生とばったり会った。" },
+        { sp:null, tx:"（同じクラスの小日向陽菜だ。相変わらず行動派で、食いしん坊）" },
+        { ch:"hina", ex:"normal" },
+        { sp:"陽菜", tx:"えっ、ここでバイト始めたの？ じゃあ、いっぱい食べに来なきゃ！" },
+        { sp:"me", tx:"小日向……！ な、なんでここにいるんだよ。" },
+        { sp:"陽菜", tx:"通りかかっただけだよ。……でね、今から食べるから！ マルゲリータ、いちばん大きいの！" },
+        { choice:[
+          { label:"「おう、任せろ。とびきりの一枚を焼くよ」", fx:{ hina:1 }, steps:[
+            { ch:"hina", ex:"expect" },
+            { sp:"陽菜", tx:"おお〜！ 言ったね！？ 期待しちゃうよ。バジル多めでお願いね！" },
+            { sp:null, tx:"陽菜は目を輝かせて、店の方へ走っていった。" }
+          ]},
+          { label:"「……俺、まだ下手なんだけどな」", fx:{}, steps:[
+            { sp:"陽菜", tx:"えー、弱気！ でもまあ、下手でも食べてあげるよ。友達だもんね！" },
+            { sp:null, tx:"陽菜は笑いながら、店の方へ走っていった。" }
+          ]}
+        ]},
+        { bg:"interior" },
+        { ch:"hina", ex:"excited" },
+        { sp:"陽菜", tx:"ん〜！ このトマトの酸っぱさとチーズのとろけ具合……！ {name}のピザ、悪くないじゃん！" },
+        { ch:"hero", ex:"shy" },
+        { sp:"me", tx:"（ほ、本人に褒められると……照れるな……。でも、嬉しい）" },
+        { choice:[
+          { label:"「バジル、多めにのせておいたよ」", fx:{ hina:1 }, steps:[
+            { ch:"hina", ex:"blush" },
+            { sp:"陽菜", tx:"わ、気づいた！？ ……へへ、ありがと。やっぱり{name}は分かってるなあ。" },
+            { sp:null, tx:"陽菜は頬をほころばせて、もう一切れほおばった。" }
+          ]},
+          { label:"「マスターの監修つきだからな……」", fx:{}, steps:[
+            { ch:"hina", ex:"excited" },
+            { sp:"陽菜", tx:"正直か！ まあ、それでも美味しいよ。次は一人で焼いてみせてよね。" },            { sp:null, tx:"陽菜はあっという間に平らげてしまった。" }
+          ]}
+        ]},
+        { ch:"hina", ex:"normal" },
+        { sp:"陽菜", tx:"ごちそうさま！ また来るね。……学校でも、よろしく！" },
+        { ch:null },
+        /* ===== 紬・出会い ===== */
+        { sp:null, tx:"―― 夕方。店の隅の席に、いつも静かに座る子がいる。1年生の白瀬紬さん。注文の声は、いつも小さめだ。" },
+        { ch:"aoi", ex:"shy" },
+        { sp:"紬", tx:"……あの……あんバターピザ……ください……。" },
+        { sp:"me", tx:"はい、少々お待ちを。……（今日も声、ちっちゃいな）" },
+        { choice:[
+          { label:"「いつもありがとうございます。今日も隅の席ですね」", fx:{ aoi:1 }, steps:[
+            { sp:"紬", tx:"……！ ……覚えて、くれてたんですか……。……ありがとう、ございます……。" },
+            { sp:null, tx:"紬は少しだけ、ほっとした顔をした。" }
+          ]},
+          { label:"無言で注文だけ受けて下がる", fx:{}, steps:[
+            { sp:null, tx:"紬は小さく会釈して、スケッチブックを開いた。……何か描いているみたいだ。" }
+          ]}
+        ]},
+        { sp:null, tx:"焼き上がったあんバターピザを持っていくと、紬はスケッチブックを慌てて閉じた。" },
+        { choice:[
+          { label:"「無理に隠さなくて大丈夫ですよ」", fx:{ aoi:1 }, steps:[
+            { ch:"aoi", ex:"blush" },
+            { sp:"紬", tx:"……ごめんなさい……。……その、まだ……見せられるものじゃ、なくて……。" },
+            { sp:"me", tx:"そっか。じゃあ、いつか見せてもらえるのを楽しみにしてます。" },
+            { sp:"紬", tx:"……！ ……うん……。" }
+          ]},
+          { label:"「お待たせしました」とだけ言って下がる", fx:{}, steps:[
+            { sp:"紬", tx:"……ありがとう……ございます……。" },
+            { sp:null, tx:"紬はピザを小さく切り分けて、静かに食べ始めた。" }
+          ]}
+        ]},
+        { ch:null },
+        { sp:null, tx:"―― 数週間が過ぎ、{name}は少しずつ店にも学校にも慣れてきた。\nそして、3人それぞれの「秘密」に触れる日がやってくる。" },
+        /* ===== 栞・深掘り ===== */
+        { bg:"evening" },
+        { sp:null, tx:"―― ある日の閉店後。夕焼けの帰り道で、栞と一緒になった。" },
+        { ch:"asakura", ex:"serious" },
+        { sp:"栞", tx:"……ねえ、新入りくん。いえ、{name}。私ね、卒業後の進路、まだ決められてないの。" },
+        { sp:"栞", tx:"みんなは「栞なら大丈夫」って言う。でも本当は……怖いの。あの店に来るのだけが、息抜きだった。" },
+        { choice:[
+          { label:"黙って、最後まで話を聞く", fx:{ asakura:2 }, steps:[
+            { sp:"栞", tx:"……ふふ、ありがとう。誰かに聞いてもらうの、初めてだった。……少し、軽くなったわ。" },
+            { sp:null, tx:"栞は夕焼けの中で、いつもと違う、ほっとした笑顔を見せた。" }
+          ]},
+          { label:"「先輩なら、どこでも大丈夫ですよ」", fx:{ asakura:1 }, steps:[
+            { sp:"栞", tx:"……そう言われると、少しだけ楽ね。ありがとう。でも、根拠のない大丈夫は、もう卒業しなきゃね。" }
+          ]},
+          { label:"「進路って、ピザみたいに焼けばいいんじゃ……」", fx:{}, steps:[
+            { sp:"栞", tx:"……ぷっ。何それ。……でも、悪くない考えかも。生地を寝かせる時間も、必要だものね。" }
+          ]}
+        ]},
+        { ch:"asakura", ex:"normal" },
+        { sp:"栞", tx:"今度の週末、店は繁忙日でしょう？ 私もお客さんとして行くわ。……{name}の焼くピザ、最後の――いえ、また食べさせてね。" },
+        { ch:null },
+        /* ===== 陽菜・深掘り ===== */
+        { bg:"interior" },
+        { sp:null, tx:"―― 放課後。陽菜が、カウンター越しに真剣な顔で話しかけてきた。" },
+        { ch:"hina", ex:"serious" },
+        { sp:"陽菜", tx:"ねえ{name}。……私さ、この店でバイトしたいなって思ってるんだ。でも、私みたいな食いしん坊、雇ってもらえるかな……。" },
+        { choice:[
+          { label:"「陽菜の明るさは、この店に絶対合うよ」", fx:{ hina:2 }, steps:[
+            { ch:"hina", ex:"blush" },
+            { sp:"陽菜", tx:"……！ ほ、本当！？ ……へへ、そっか。……よし、マスターに聞いてみる！ {name}がそう言うなら、勇気出る！" },
+            { sp:null, tx:"陽菜の顔が、ぱっと明るくなった。" }
+          ]},
+          { label:"「まずはマスターに相談してみたら？」", fx:{ hina:1 }, steps:[
+            { sp:"陽菜", tx:"そ、そうだよね。悩んでても始まらないか。……背中押してくれてありがと！" }
+          ]},
+          { label:"「つまみ食いでクビになるぞ」", fx:{}, steps:[
+            { sp:"陽菜", tx:"うっ……的確すぎて反論できない……。でも！ 食べる専門の才能ってのもあると思うんだよね！？" },
+            { sp:null, tx:"陽菜は悔しそうに、でも笑いながら言った。" }
+          ]}
+        ]},
+        { ch:"hina", ex:"normal" },
+        { sp:"陽菜", tx:"週末の繁忙日、私もお客さんで行くからね。もしバイトになったら……その時は先輩、よろしく！" },
+        { ch:null },
+        /* ===== 紬・深掘り ===== */
+        { sp:null, tx:"―― 雨上がりの夕方。紬が、意を決したようにスケッチブックを差し出した。" },
+        { ch:"aoi", ex:"shy" },
+        { sp:"紬", tx:"……あの……見て、ください……。お店の……メニューボードの、絵……描いてみたんです……。" },
+        { sp:"me", tx:"わ……！ ピザの絵、すごく美味しそうだ。色づかいも温かい……。" },
+        { ch:"aoi", ex:"blush" },
+        { sp:"紬", tx:"……あ……ありがとう、ございます……。（ほ、褒められた……）" },
+        { ch:"aoi", ex:"shy" },
+        { sp:"紬", tx:"あの……このお店のポップ、私が描いてもいいですか？" },
+        { sp:"紬", tx:"……ずっと、描いてみたいなって思ってたんです……。でも、自信がなくて……。" },
+        { choice:[
+          { label:"「もちろん！ 一緒にマスターにも見せよう」", fx:{ aoi:2 }, steps:[
+            { ch:"aoi", ex:"smile" },
+            { sp:"紬", tx:"……！ ……いいん、ですか……？ ……うん……！ {name}さんが一緒なら……行ってみます……！" },
+            { sp:null, tx:"紬はスケッチブックをぎゅっと抱えて、小さく、でも確かに頷いた。" }
+          ]},
+          { label:"「いいと思う。マスターに言ってみなよ」", fx:{ aoi:1 }, steps:[
+            { sp:"紬", tx:"……ありがとう……。……いつか、勇気を出して……マスターに、見せてみます……。" }
+          ]},
+          { label:"「へえ、上手いね」と軽く返す", fx:{}, steps:[
+            { sp:"紬", tx:"……あ……うん……。……ありがとう……。" },
+            { sp:null, tx:"紬は少し寂しそうに、スケッチブックを閉じた。" }
+          ]}
+        ]},
+        { ch:"aoi", ex:"smile" },
+        { sp:"紬", tx:"……週末の繁忙日……私も、来ます……。……{name}さんのピザ、楽しみにしてます……。" },
+        { ch:null },
+        /* ===== 最終イベント ===== */
+        { finale:true },
+        { bg:"interior" },
+        { ch:"manager", ex:"genki" },
+        { sp:"マスター", tx:"今日は週末の繁忙日！ 予約もいっぱいだ。新入りくん、今日は君の腕の見せどころだよ！" },
+        { ch:"hero", ex:"serious" },
+        { sp:"me", tx:"はい！ 全力で焼きます！" },
+        { sp:null, tx:"店内はあっという間に満席に。注文が次々と入ってくる――！" },
+        { choice:[
+          { label:"栞の「いつもの」を完璧に焼き上げる", fx:{ asakura:1 }, steps:[
+            { ch:"asakura", ex:"tease" },
+            { sp:"栞", tx:"……あら。忙しいのに、私の好みまで覚えててくれたのね。……ふふ、ありがとう。" }
+          ]},
+          { label:"陽菜のマルゲリータに心を込める", fx:{ hina:1 }, steps:[
+            { ch:"hina", ex:"excited" },
+            { sp:"陽菜", tx:"わあ、このバジルの量……！ {name}、分かってる〜！ 忙しいのにありがとう！" }
+          ]},
+          { label:"紬のあんバターピザを丁寧に仕上げる", fx:{ aoi:1 }, steps:[
+            { ch:"aoi", ex:"smile" },
+            { sp:"紬", tx:"……！ ……あんバターの、とろけ具合……完璧です……。……ありがとう……！" }
+          ]},
+          { label:"誰の注文も平等に、淡々とこなす", fx:{}, steps:[
+            { sp:null, tx:"{name}は黙々とピザを焼き続けた。マスターが小さく頷いている。" }
+          ]}
+        ]},
+        { ch:null },
+        { sp:null, tx:"―― 繁忙日は無事に終わった。閉店後の店内で、{name}は大きく息をついた。" },
+        { ending:true }
+      ];
+      var ENDINGS = {
+        asakura: {
+          label:"栞エンディング", title:"栞 ―「いつもの」の先にあるもの",
+          lines:[
+            { bg:"evening" },
+            { ch:"asakura", ex:"normal" },
+            { sp:"栞", tx:"繁忙日、お疲れさま。……ねえ、{name}。私、決めたわ。進路、逃げずに向き合う。" },
+            { sp:"栞", tx:"あの日、話を聞いてくれたから。……そして今日のピザ、最高だった。" },
+            { ch:"asakura", ex:"tease" },
+            { sp:"栞", tx:"忙しい日だったのに、私の『いつもの』、完璧だった。……ふふ、頼れるようになったじゃない。" },
+            { sp:"栞", tx:"卒業しても、この店には来るわ。「いつもの」を頼みにね。……その時はまた、焼いてちょうだい？" },
+            { sp:"me", tx:"もちろんです。――何年先でも、「いつもの」、覚えてますから。" },
+            { ch:"asakura", ex:"blush" },
+            { sp:"栞", tx:"……ふふ、ありがとう。……頼りにしてるわよ、{name}。" },
+            { sp:null, tx:"夕焼けの中、栞は少し照れたように笑った。\n二人の距離は、確かに縮まっていた。" }
+          ],
+          text:"進路に悩む栞の話を聞き、繁忙日には彼女の「いつもの」を完璧に焼き上げた{name}。\n大人っぽい先輩との、ゆっくりと育つ恋の予感――。"
+        },
+        hina: {
+          label:"陽菜エンディング", title:"陽菜 ― 同僚はじめました",
+          lines:[
+            { bg:"interior" },
+            { ch:"hina", ex:"normal" },
+            { sp:"陽菜", tx:"{name}！ 見て見て、エプロン！ マスターにOKもらえたの、私も今日からここのバイト！" },
+            { sp:"陽菜", tx:"背中を押してくれたの、{name}だもんね。……これからは同級生で、クラスメイトで、同僚！" },
+            { sp:"陽菜", tx:"まかないはマルゲリータでお願いね、先輩！ ……なんてね。よろしく、{name}！" },
+            { sp:"me", tx:"おう。……まずは賄いをつまみ食いしないところからな。" },
+            { sp:null, tx:"笑い合う二人の距離は、明日からもっと近くなりそうだ。" }
+          ],
+          text:"バイトへの一歩を後押しした{name}と、見事に採用された陽菜。\n学校でも店でも一緒――明るい同級生との恋は、ここからが本番。"
+        },
+        aoi: {
+          label:"紬エンディング", title:"紬 ― メニューボードの約束",
+          lines:[
+            { bg:"interior" },
+            { ch:"aoi", ex:"smile" },
+            { sp:"紬", tx:"……{name}さん……見て、ください……。マスターが……私の絵を、メニューボードに使ってくれるって……！" },
+            { sp:"紬", tx:"……一緒に提案してくれたから……私、一歩、踏み出せました……。ありがとう……。" },
+            { sp:"紬", tx:"……今度……{name}さんのピザの絵も……描かせてください……。……一番、美味しそうに描きます……。" },
+            { sp:"me", tx:"本当？ 楽しみにしてるよ。店の看板メニューにしなきゃな。" },
+            { sp:null, tx:"恥ずかしそうに笑う紬の笑顔が、少しずつ増えていく――そんな未来が見えた気がした。" }
+          ],
+          text:"紬の絵の才能を信じて、一緒にマスターへ提案した{name}。\n人見知りの後輩の心が、少しずつ開いていく物語。"
+        },
+        normal: {
+          label:"通常エンディング", title:"通常 ― 修行は続く",
+          lines:[
+            { bg:"interior" },
+            { ch:"manager", ex:"warm" },
+            { sp:"マスター", tx:"繁忙日、お疲れさま。……{name}、今日からお前を弟子と認める。窯の火は、ここからが本番だぞ。" },
+            { sp:"me", tx:"弟子……！ はいっ、よろしくお願いします、マスター！" },
+            { sp:null, tx:"恋の予感はまだ先でも、職人への道はここから始まる。{name}の修行の日々は、まだ始まったばかりだ。" }
+          ],
+          text:"誰かと特別に近づくことはなかったけれど、マスターに弟子と認められた{name}。ピザ職人としての修行は、ここからが本番――。"
+        }
+      };
+      /* 誰の好感度も上げなかった場合の専用エンディング */
+      ENDINGS.zero = {
+        label:"誰も選ばなかったエンド", title:"誰も選ばなかったエンド ― ピザに全振り",
+        lines:[
+          { bg:"interior" },
+          { ch:"asakura", ex:"normal" },
+          { sp:"栞", tx:"……あの子、今日も窯しか見ていないわね。" },
+          { ch:"hina", ex:"normal" },
+          { sp:"陽菜", tx:"うん。さっき声かけたら、生地に返事してた……。" },
+          { ch:"aoi", ex:"normal" },
+          { sp:"紬", tx:"……でも……ピザ……本当に、美味しそう……。" },
+          { sp:null, tx:"三人の視線に気づかないまま、{name}は今日も完璧な一枚を焼き上げた。" }
+        ],
+        text:"誰の心も掴めなかった代わりに、窯の火加減だけは完璧に掴んだ{name}。カウンター越しの呆れ顔に気づくのは、まだ先の話――。"
+      };
+      /* ================= エンジン ================= */
+      var NAMES = { asakura:"栞", hina:"陽菜", aoi:"紬" };
+      /* 好感度MAX（一筋ボーナス）到達時のみ表示するエンドカード。未登録のヒロインはカードなし */
+      var ENDCARDS = { asakura:"assets/endcard-shiori.jpg", hina:"assets/endcard-hina.jpg", aoi:"assets/endcard-tsumugi.jpg" };
+      /* 全員好感度0の専用エンディング（zero）用カード */
+      var NORMAL_ENDCARD = "assets/endcard-normal.jpg";
+      /* 通常エンディング（修行エンド）用カード：通常エンド時は常時表示 */
+      var TRAINING_ENDCARD = "assets/endcard-training.jpg";
+      var MAXAFF = 6, THRESHOLD = 4;
+      var state = null;
+      var $ = function(id){ return document.getElementById(id); };
+      var dialogEl = $("dialog"), textEl = $("dialogText"), speakerEl = $("speaker"),
+          charEl = $("charFigure"), choiceEl = $("choiceLayer"), popupEl = $("popupLayer");
+      var typeTimer = null, typing = false, fullText = "";
+
+      function freshState(name){
+        return { name:name, aff:{ asakura:0, hina:0, aoi:0 }, queue:SCRIPT.slice(),
+                 currentEnding:null, afterEnd:false, busy:false, maxed:null };
+      }
+      function subst(t){ return t.replace(/\{name\}/g, state.name); }
+      function setBg(name){
+        var layers = document.querySelectorAll(".bg-layer");
+        for(var i = 0; i < layers.length; i++){ layers[i].classList.remove("active"); }
+        var el = $("bg-" + name); if(el) el.classList.add("active");
+      }
+      /* キャラシート切り抜き（表情バストアップ） */
+      var CHAR_IMG = {
+        hero:    { normal:"hero-normal.png", panic:"hero-panic.png", blush:"hero-shy.png", shy:"hero-shy.png", serious:"hero-serious.png" },
+        asakura: { normal:"shiori-normal.png", tease:"shiori-tease.png", blush:"shiori-shy.png", serious:"shiori-honne.png" },
+        hina:    { normal:"hina-normal.png", excited:"hina-excited.png", expect:"hina-expect.png", blush:"hina-shy.png", serious:"hina-serious.png" },
+        aoi:     { normal:"tsumugi-normal.png", shy:"tsumugi-confused.png", blush:"tsumugi-shy.png", smile:"tsumugi-smile.png" },
+        manager: { normal:"master-normal.png", genki:"master-genki.png", craft:"master-craft.png", warm:"master-warm.png" }
+      };
+      var BODY_IMG = { hero:"hero-body.png", asakura:"shiori-body.png", hina:"hina-body.png", aoi:"tsumugi-body.png", manager:"master-body.png" };
+      /* 先読みして切り替え時のちらつきを防ぐ */
+      (function(){
+        var files = ["hero-body.png","hero-normal.png","hero-panic.png","hero-shy.png","hero-serious.png",
+          "shiori-body.png","shiori-normal.png","shiori-tease.png","shiori-shy.png","shiori-honne.png",
+          "hina-body.png","hina-normal.png","hina-excited.png","hina-expect.png","hina-shy.png","hina-serious.png",
+          "tsumugi-body.png","tsumugi-normal.png","tsumugi-confused.png","tsumugi-shy.png","tsumugi-smile.png",
+          "master-body.png","master-normal.png","master-genki.png","master-craft.png","master-warm.png"];
+        for(var i = 0; i < files.length; i++){ var im = new Image(); im.src = "assets/" + files[i]; }
+      })();
+      /* 全員、透明PNGの立ち絵で表示する */
+      var SPRITE_CHARS = { hero:true, asakura:true, hina:true, aoi:true, manager:true };
+      function setChar(ch, ex){
+        var layer = $("charLayer");
+        if(!ch){
+          charEl.classList.remove("show"); charEl.classList.remove("portrait"); charEl.classList.remove("sprite");
+          layer.classList.remove("portrait-mode"); layer.classList.remove("sprite-mode");
+          charEl.innerHTML = ""; return;
+        }
+        if(CHAR_IMG[ch]){
+          var file = CHAR_IMG[ch][ex] || CHAR_IMG[ch].normal;
+          charEl.innerHTML = '<img src="assets/' + file + '" alt="" />';
+          if(SPRITE_CHARS[ch]){
+            charEl.classList.remove("portrait"); layer.classList.remove("portrait-mode");
+            charEl.classList.add("sprite"); layer.classList.add("sprite-mode");
+          } else {
+            charEl.classList.remove("sprite"); layer.classList.remove("sprite-mode");
+            charEl.classList.add("portrait"); layer.classList.add("portrait-mode");
+          }
+        } else {
+          /* 切り抜き未登録キャラ用のフォールバック描画 */
+          charEl.innerHTML = CHARACTERS[ch](ex || "normal");
+          charEl.classList.remove("portrait"); charEl.classList.remove("sprite");
+          layer.classList.remove("portrait-mode"); layer.classList.remove("sprite-mode");
+        }
+        charEl.classList.add("show");
+      }
+      function chapterCard(text){
+        var d = document.createElement("div");
+        d.textContent = text;
+        d.style.cssText = "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;" +
+          "background:rgba(20,12,8,.72);color:#ffe9c4;font-size:clamp(22px,6vw,34px);font-weight:900;" +
+          "letter-spacing:.12em;z-index:35;opacity:0;transition:opacity .4s ease;text-align:center;padding:20px;";
+        $("app").appendChild(d);
+        requestAnimationFrame(function(){ d.style.opacity = "1"; });
+        setTimeout(function(){ d.style.opacity = "0"; setTimeout(function(){ d.remove(); }, 450); }, 1500);
+      }
+      function showPopup(key, delta){
+        var d = document.createElement("div");
+        d.className = "aff-pop" + (delta < 0 ? " down" : "");
+        d.textContent = NAMES[key] + " ♡" + (delta > 0 ? "+" + delta : delta);
+        popupEl.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 1550);
+      }
+      function showMaxPopup(key){
+        var d = document.createElement("div");
+        d.className = "aff-pop";
+        d.textContent = NAMES[key] + "の好感度 MAX！";
+        popupEl.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 1550);
+      }
+      function hearts(n){
+        var s = "";
+        for(var i = 0; i < MAXAFF; i++){ s += '<span class="' + (i < n ? "" : "off") + '">♥</span>'; }
+        return s;
+      }
+      function typeText(text){
+        fullText = text; typing = true;
+        textEl.textContent = "";
+        var i = 0;
+        if(typeTimer) clearInterval(typeTimer);
+        typeTimer = setInterval(function(){
+          i++;
+          textEl.textContent = fullText.slice(0, i);
+          if(i >= fullText.length){ clearInterval(typeTimer); typing = false; }
+        }, 22);
+      }
+      function showLine(sp, tx){
+        if(sp === null || sp === undefined){
+          speakerEl.textContent = "　"; speakerEl.className = "narration"; speakerEl.id = "speaker";
+          speakerEl.classList.add("narration");
+        } else {
+          speakerEl.classList.remove("narration");
+          speakerEl.textContent = (sp === "me") ? state.name : sp;
+        }
+        typeText(subst(tx));
+      }
+      function processNext(){
+        if(!state) return;
+        while(state.queue.length){
+          var step = state.queue.shift();
+          if(step.bg){ setBg(step.bg); continue; }
+          if("ch" in step){ setChar(step.ch, step.ex); continue; }
+          if(step.finale){ chapterCard("最終話 ― 週末の繁忙日"); continue; }
+          if(step.ending){
+            var key = pickEnding();
+            state.currentEnding = key;
+            state.afterEnd = true;
+            if(state.maxed){ showMaxPopup(state.maxed); AudioSys.pop(true); }
+            var lines = ENDINGS[key].lines.slice();
+            for(var i = lines.length - 1; i >= 0; i--){ state.queue.unshift(lines[i]); }
+            continue;
+          }
+          if(step.choice){ showChoice(step.choice); return; }
+          if("tx" in step){ showLine(step.sp, step.tx); return; }
+        }
+        if(state.afterEnd){ showEndScreen(); }
+      }
+      function pickEnding(){
+        var aff = state.aff, best = null, bestVal = -1;
+        ["asakura","hina","aoi"].forEach(function(k){
+          if(aff[k] > bestVal){ bestVal = aff[k]; best = k; }
+        });
+        /* 誰の好感度も上げなかった場合は専用エンディングへ */
+        if(["asakura","hina","aoi"].every(function(k){ return aff[k] === 0; })) return "zero";
+        if(bestVal < THRESHOLD) return "normal";
+        /* 一筋ボーナス：他のヒロインの好感度を一切上げずにたどり着いた場合、
+           到達したヒロインの好感度はMAXになる */
+        var othersZero = ["asakura","hina","aoi"].every(function(k){
+          return k === best || aff[k] === 0;
+        });
+        if(othersZero){
+          aff[best] = MAXAFF;
+          state.maxed = best;
+        }
+        return best;
+      }
+      function showChoice(options){
+        choiceEl.innerHTML = "";
+        options.forEach(function(opt){
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "choice-btn"; b.textContent = opt.label;
+          b.addEventListener("click", function(ev){
+            ev.stopPropagation();
+            AudioSys.resume();
+            chooseOption(opt);
+          });
+          choiceEl.appendChild(b);
+        });
+        choiceEl.classList.add("show");
+      }
+      function chooseOption(opt){
+        choiceEl.classList.remove("show");
+        var total = 0, firstKey = null;
+        for(var k in opt.fx){
+          if(opt.fx[k]){
+            state.aff[k] = Math.max(0, Math.min(MAXAFF, state.aff[k] + opt.fx[k]));
+            total += opt.fx[k];
+            if(!firstKey) firstKey = k;
+          }
+        }
+        AudioSys.pop(total > 0);
+        if(firstKey){ showPopup(firstKey, opt.fx[firstKey]); }
+        var steps = (opt.steps || []).slice();
+        for(var i = steps.length - 1; i >= 0; i--){ state.queue.unshift(steps[i]); }
+        setTimeout(processNext, firstKey ? 950 : 60);
+      }
+      function advance(){
+        if(!state || state.busy) return;
+        if(choiceEl.classList.contains("show")) return;
+        if($("statusModal").classList.contains("show")) return;
+        if(typing){
+          if(typeTimer) clearInterval(typeTimer);
+          typing = false; textEl.textContent = fullText; return;
+        }
+        AudioSys.resume(); AudioSys.blip();
+        processNext();
+      }
+      dialogEl.addEventListener("click", function(){ advance(); });
+      $("app").addEventListener("click", function(e){
+        if(!dialogEl.classList.contains("show")) return;
+        if(e.target.closest("button") || e.target.closest("input")) return;
+        if(e.target.closest("#dialog")) return;
+        advance();
+      });
+      document.addEventListener("keydown", function(e){
+        if(e.key === " " || e.key === "Enter"){
+          if(dialogEl.classList.contains("show") && !$("titleScreen").classList.contains("show")){
+            e.preventDefault(); advance();
+          }
+        }
+      });
+      /* ---------- ステータス ---------- */
+      function renderStatus(){
+        var rows = "";
+        var heroName = state ? state.name : "あなた";
+        var safeName = heroName.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        rows += '<div class="status-hero">' +
+                '<img class="status-thumb cutout" src="assets/' + BODY_IMG.hero + '" alt="" />' +
+                '<div class="status-hero-body"><div class="status-hero-name">' + safeName + '<span class="role">主人公</span></div>' +
+                '<div class="status-hero-prof">20歳｜調理専門学校 2年生<br />ピザ屋で働き始めた新入りバイト<br />ピザ作りは、まだまだ練習中<br />不器用だけど、何事にも一生懸命</div></div></div>';
+        ["asakura","hina","aoi"].forEach(function(k){
+          rows += '<div class="status-row"><span class="status-who">' +
+                  '<img class="status-thumb cutout" src="assets/' + BODY_IMG[k] + '" alt="" />' + NAMES[k] + '</span>' +
+                  '<span class="hearts">' + hearts(state ? state.aff[k] : 0) + '</span></div>';
+        });
+        rows += '<div class="status-hero" style="border-bottom:none;border-top:2px solid #d9c3a5;margin-top:10px;padding-top:12px;margin-bottom:0;padding-bottom:2px;">' +
+                '<img class="status-thumb cutout" src="assets/' + BODY_IMG.manager + '" alt="" />' +
+                '<div class="status-hero-body"><div class="status-hero-name">マスター<span class="role">店主</span></div>' +
+                '<div class="status-hero-prof">40代、気持ちは20代！<br />赤いピザ屋の店主<br />新しいことが好きな、陽気な兄貴分<br />ピザを焼くときは、頼れる職人<br />主人公と常連たちを温かく見守る</div></div></div>';
+        $("statusRows").innerHTML = rows;
+      }
+      $("statusBtn").addEventListener("click", function(e){
+        e.stopPropagation(); AudioSys.resume(); renderStatus();
+        $("statusModal").classList.add("show");
+      });
+      $("statusClose").addEventListener("click", function(e){
+        e.stopPropagation(); $("statusModal").classList.remove("show");
+      });
+      $("statusModal").addEventListener("click", function(e){
+        if(e.target === this){ this.classList.remove("show"); }
+      });
+      /* ---------- 音ON/OFF ---------- */
+      $("soundBtn").addEventListener("click", function(e){
+        e.stopPropagation();
+        AudioSys.resume();
+        AudioSys.on = !AudioSys.on;
+        this.textContent = AudioSys.on ? "♪ 音 ON" : "♪ 音 OFF";
+        if(AudioSys.on){ AudioSys.startMusic(); } else { AudioSys.stopMusic(); }
+      });
+      /* ---------- 開始 / 終了 ---------- */
+      $("nameInput").addEventListener("input", function(){
+        var v = this.value.trim();
+        $("heroNameLabel").textContent = v ? v : "あなた";
+      });
+      (function(){
+        var v = $("nameInput").value.trim();
+        $("heroNameLabel").textContent = v ? v : "あなた";
+      })();
+      function startGame(){
+        var name = $("nameInput").value.trim() || "ハルト";
+        state = freshState(name);
+        $("titleScreen").classList.remove("show");
+        $("endScreen").classList.remove("show");
+        dialogEl.classList.add("show");
+        $("topBar").classList.add("show");
+        setChar(null); setBg("exterior");
+        processNext();
+      }
+      function showEndScreen(){
+        var key = state.currentEnding || "normal";
+        var end = ENDINGS[key];
+        dialogEl.classList.remove("show");
+        $("topBar").classList.remove("show");
+        setChar(null);
+        var cardEl = $("endCard");
+        var cardSrc = null;
+        if(state.maxed === key && ENDCARDS[key]){ cardSrc = ENDCARDS[key]; }
+        else if(key === "zero"){ cardSrc = NORMAL_ENDCARD; }
+        else if(key === "normal"){ cardSrc = TRAINING_ENDCARD; }
+        if(cardSrc){
+          cardEl.src = cardSrc;
+          cardEl.classList.add("show");
+        } else {
+          cardEl.classList.remove("show");
+          cardEl.removeAttribute("src");
+        }
+        $("endTitle").textContent = end.title;
+        $("endText").textContent = subst(end.text);
+        var rows = "<div>【" + end.label + "】到達</div>";
+        if(state.maxed === key){
+          rows += '<div style="color:#ff9db4;font-weight:800;">💗 一筋ボーナスで ' + NAMES[key] + ' の好感度がMAXに！</div>';
+        }
+        ["asakura","hina","aoi"].forEach(function(k){
+          rows += '<div>' + NAMES[k] + ' <span class="hearts">' + hearts(state.aff[k]) + '</span> ' + state.aff[k] + '</div>';
+        });
+        $("endAff").innerHTML = rows;
+        $("endScreen").classList.add("show");
+        AudioSys.pop(true);
+      }
+      $("startBtn").addEventListener("click", function(){
+        AudioSys.resume();
+        if(AudioSys.on) AudioSys.startMusic();
+        startGame();
+      });
+      $("againBtn").addEventListener("click", function(){
+        AudioSys.resume();
+        if(AudioSys.on) AudioSys.startMusic();
+        state = freshState(state ? state.name : ($("nameInput").value.trim() || "ハルト"));
+        $("endScreen").classList.remove("show");
+        dialogEl.classList.add("show");
+        $("topBar").classList.add("show");
+        setChar(null); setBg("exterior");
+        processNext();
+      });
+      $("toTitleBtn").addEventListener("click", function(){
+        state = null;
+        $("endScreen").classList.remove("show");
+        dialogEl.classList.remove("show");
+        $("topBar").classList.remove("show");
+        setChar(null); setBg("exterior");
+        $("titleScreen").classList.add("show");
+      });
+    </script>
+</body>
+</html>
